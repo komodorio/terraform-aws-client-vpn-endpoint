@@ -9,15 +9,15 @@ terraform {
 }
 
 resource "aws_acm_certificate" "client_cert" {
-  private_key       = file("${path.root}/${var.cert_dir}/client1.${var.domain}.key")
-  certificate_body  = file("${path.root}/${var.cert_dir}/client1.${var.domain}.crt")
-  certificate_chain = file("${path.root}/${var.cert_dir}/ca.crt")
+  private_key       = file("${path.root}/${var.vpn_cert_dir}/client1.${var.vpn_domain}.key")
+  certificate_body  = file("${path.root}/${var.vpn_cert_dir}/client1.${var.vpn_domain}.crt")
+  certificate_chain = file("${path.root}/${var.vpn_cert_dir}/ca.crt")
 }
 
 resource "aws_acm_certificate" "server_cert" {
-  private_key       = file("${path.root}/${var.cert_dir}/server.key")
-  certificate_body  = file("${path.root}/${var.cert_dir}/server.crt")
-  certificate_chain = file("${path.root}/${var.cert_dir}/ca.crt")
+  private_key       = file("${path.root}/${var.vpn_cert_dir}/server.key")
+  certificate_body  = file("${path.root}/${var.vpn_cert_dir}/server.crt")
+  certificate_chain = file("${path.root}/${var.vpn_cert_dir}/ca.crt")
 }
 
 resource "aws_ec2_client_vpn_endpoint" "client-vpn-endpoint" {
@@ -34,8 +34,10 @@ resource "aws_ec2_client_vpn_endpoint" "client-vpn-endpoint" {
     enabled = false
   }
 
+  dns_servers = ["75.75.75.75", "76.76.76.76"]
+
   tags = {
-    Name = "test"
+    Name = var.vpn_client_name
   }
 }
 
@@ -81,7 +83,12 @@ resource "null_resource" "export-client-config" {
 
 resource "null_resource" "append-client-config-certs" {
   provisioner "local-exec" {
-    command = "${path.module}/scripts/client_config_append_certs_path.sh ${path.root} ${var.cert_dir} ${var.domain}"
+    when    = create
+    command = "${path.module}/scripts/client_config_append_certs_path.sh ${path.root} ${var.vpn_cert_dir} ${var.vpn_domain}"
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 
   depends_on = [null_resource.export-client-config]
